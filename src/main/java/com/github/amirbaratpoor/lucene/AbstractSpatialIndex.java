@@ -6,24 +6,33 @@ import com.github.amirbaratpoor.io.JavaSerializer;
 import com.github.amirbaratpoor.io.Serializer;
 import com.github.amirbaratpoor.lucene.collect.VisitorCollector;
 import com.github.amirbaratpoor.lucene.collect.VisitorManagerCollectorManager;
+import com.github.amirbaratpoor.lucene.visitor.StoreItemsVisitor;
+import com.github.amirbaratpoor.lucene.visitor.ThresholdHolder;
 import com.github.amirbaratpoor.lucene.visitor.Visitor;
 import com.github.amirbaratpoor.lucene.visitor.VisitorManager;
 import org.apache.lucene.codecs.lucene90.Lucene90Codec;
-import org.apache.lucene.index.IndexReader;
-import org.apache.lucene.index.IndexWriter;
-import org.apache.lucene.index.IndexWriterConfig;
-import org.apache.lucene.index.Term;
+import org.apache.lucene.document.BinaryDocValuesField;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.StringField;
+import org.apache.lucene.index.*;
 import org.apache.lucene.search.*;
 import org.apache.lucene.store.Directory;
+import org.apache.lucene.util.BytesRef;
 import org.apache.lucene.util.IOUtils;
 import org.locationtech.jts.geom.Geometry;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
+
+    public static final String ID_FIELD_NAME = "id";
+    public static final String SOURCE_FIELD_NAME = "source";
+
     protected final IndexWriter indexWriter;
     protected final SearcherManager searcherManager;
     protected final Deserializer<? extends T> deserializer;
@@ -64,35 +73,100 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
         }
     }
 
+    @Override
+    public Collection<T> query(Geometry searchShape, Relation relation, int size) throws IOException {
+        StoreItemsVisitor<T> visitor = new StoreItemsVisitor<>(ThresholdHolder.createMutable(size));
+        query(searchShape, relation, visitor);
+        return visitor.getItems();
+    }
 
     @Override
-    public <V extends Visitor<? super T>, R> R queryById(Geometry searchShape, VisitorManager<T, V, R> visitorManager) throws IOException {
+    public <V extends Visitor<? super T>> void query(Geometry searchShape, Relation relation, V visitor) throws IOException {
+        ensureOpen();
+        executeQuery(shapeQuery(searchShape, relation), visitor);
+    }
+
+    @Override
+    public <V extends Visitor<? super T>, R> R query(Geometry searchShape, Relation relation, V visitor, IOUtils.IOFunction<V, R> extractor) throws IOException {
+        query(searchShape, relation, visitor);
+        return extractor.apply(visitor);
+    }
+
+    @Override
+    public <V extends Visitor<? super T>, R> R query(Geometry searchShape, Relation relation, VisitorManager<T, V, R> visitorManager) throws IOException {
+        ensureOpen();
+        return executeQuery(shapeQuery(searchShape, relation), visitorManager);
+    }
+
+    @Override
+    public Collection<T> queryById(String id, int size) throws IOException {
         return null;
     }
 
     @Override
     public void queryById(String id, Visitor<? super T> visitor) throws IOException {
         ensureOpen();
-        executeQuery(createQuery(id), visitor);
-    }
-
-
-    @Override
-    public <V extends Visitor<? super T>, R> R query(Geometry searchShape, Relation relation, VisitorManager<T, V, R> visitorManager) throws IOException {
-        ensureOpen();
-        return executeQuery(createQuery(searchShape, relation), visitorManager);
+        executeQuery(idQuery(id), visitor);
     }
 
     @Override
-    public <V extends Visitor<? super T>> void query(Geometry searchShape, Relation relation, V visitor) throws IOException {
+    public <V extends Visitor<? super T>, R> R queryById(String id, V visitor, IOUtils.IOFunction<V, R> extractor) throws IOException {
+        queryById(id, visitor);
+        return extractor.apply(visitor);
+    }
+
+    @Override
+    public <V extends Visitor<? super T>, R> R queryById(String id, VisitorManager<T, V, R> visitorManager) throws IOException {
         ensureOpen();
-        executeQuery(createQuery(searchShape, relation), visitor);
+        return executeQuery(idQuery(id), visitorManager);
+    }
+
+    @Override
+    public void remove(String id) throws IOException {
+        ensureOpen();
+        indexWriter.deleteDocuments(idQuery(id));
     }
 
     @Override
     public void remove(Geometry shape, Relation relation) throws IOException {
         ensureOpen();
-        indexWriter.deleteDocuments(createQuery(shape, relation));
+        indexWriter.deleteDocuments(shapeQuery(shape, relation));
+    }
+
+    @Override
+    public void removeAll() throws IOException {
+        ensureOpen();
+        indexWriter.deleteAll();
+    }
+
+    @Override
+    public void insert(String id, Geometry shape, T source) throws IOException {
+        ensureOpen();
+        IndexableField[] shapeFields = shapeFields(shape);
+        Document document = new Document();
+        for (IndexableField shapeField : shapeFields) {
+            document.add(shapeField);
+        }
+        document.add(sourceField(source));
+        document.add(idField(id));
+        indexWriter.addDocument(document);
+    }
+
+    @Override
+    public void insert(Geometry shape, T source) throws IOException {
+        insert(null, shape, source);
+    }
+
+    @Override
+    public int parallelism() throws IOException {
+        ensureOpen();
+        final IndexSearcher ref = searcherManager.acquire();
+        try {
+            IndexSearcher.LeafSlice[] slices = ref.getSlices();
+            return slices == null ? 0 : slices.length - 1;
+        } finally {
+            searcherManager.release(ref);
+        }
     }
 
     @Override
@@ -111,23 +185,6 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
     @Override
     public void refresh() throws IOException {
         searcherManager.maybeRefreshBlocking();
-    }
-
-    @Override
-    public void removeById(String id) throws IOException {
-        ensureOpen();
-        indexWriter.deleteDocuments(createQuery(id));
-    }
-
-    @Override
-    public void removeAll() throws IOException {
-        ensureOpen();
-        indexWriter.deleteAll();
-    }
-
-    @Override
-    public void insert(String id, Geometry shape, T source) {
-
     }
 
     private <V extends Visitor<? super T>> void executeQuery(Query query, V visitor) throws IOException {
@@ -150,24 +207,22 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
         }
     }
 
-    @Override
-    public int parallelism() throws IOException {
-        ensureOpen();
-        final IndexSearcher ref = searcherManager.acquire();
-        try {
-            IndexSearcher.LeafSlice[] slices = ref.getSlices();
-            return slices == null ? 0 : slices.length - 1;
-        } finally {
-            searcherManager.release(ref);
-        }
+    protected abstract Query shapeQuery(Geometry searchShape, Relation relation);
+
+    protected abstract IndexableField[] shapeFields(Geometry shape);
+
+    private Query idQuery(String id) {
+        return new TermQuery(new Term(ID_FIELD_NAME, id));
     }
 
-    protected abstract Query createQuery(Geometry searchShape, Relation relation);
-
-    protected Query createQuery(String id) {
-        return new TermQuery(new Term("id", id));
+    private IndexableField idField(String id) {
+        return new StringField(ID_FIELD_NAME, id, Field.Store.NO);
     }
 
+    private IndexableField sourceField(T source) throws IOException {
+        byte[] bytes = serializer.serialize(source);
+        return new BinaryDocValuesField(SOURCE_FIELD_NAME, new BytesRef(bytes));
+    }
 
     private SearcherFactory getSearcherFactory(Executor executor) {
         return new SearcherFactory() {
@@ -194,7 +249,6 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
         private double ramBufferSizeMB = IndexWriterConfig.DEFAULT_RAM_BUFFER_SIZE_MB;
         private Deserializer<? extends T> deserializer;
         private Serializer<? super T> serializer;
-
 
         protected Builder(Directory directory) {
             this.directory = Objects.requireNonNull(directory);
