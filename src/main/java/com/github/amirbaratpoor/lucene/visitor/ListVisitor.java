@@ -5,12 +5,12 @@ import org.apache.lucene.search.CollectionTerminatedException;
 import java.util.ArrayList;
 import java.util.List;
 
-public class StoreItemsVisitor<T> implements Visitor<T> {
+public class ListVisitor<T> implements Visitor<T> {
 
     private final List<T> items = new ArrayList<>();
     private final ThresholdHolder thresholdHolder;
 
-    public StoreItemsVisitor(ThresholdHolder thresholdHolder) {
+    public ListVisitor(ThresholdHolder thresholdHolder) {
         this.thresholdHolder = thresholdHolder;
     }
 

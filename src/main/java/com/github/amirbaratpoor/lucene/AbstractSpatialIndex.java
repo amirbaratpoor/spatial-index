@@ -6,7 +6,7 @@ import com.github.amirbaratpoor.io.JavaSerializer;
 import com.github.amirbaratpoor.io.Serializer;
 import com.github.amirbaratpoor.lucene.collect.VisitorCollector;
 import com.github.amirbaratpoor.lucene.collect.VisitorManagerCollectorManager;
-import com.github.amirbaratpoor.lucene.visitor.StoreItemsVisitor;
+import com.github.amirbaratpoor.lucene.visitor.ListVisitor;
 import com.github.amirbaratpoor.lucene.visitor.ThresholdHolder;
 import com.github.amirbaratpoor.lucene.visitor.Visitor;
 import com.github.amirbaratpoor.lucene.visitor.VisitorManager;
@@ -75,7 +75,7 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
 
     @Override
     public Collection<T> query(Geometry searchShape, Relation relation, int size) throws IOException {
-        StoreItemsVisitor<T> visitor = new StoreItemsVisitor<>(ThresholdHolder.createMutable(size));
+        ListVisitor<T> visitor = new ListVisitor<>(ThresholdHolder.createMutable(size));
         query(searchShape, relation, visitor);
         return visitor.getItems();
     }
