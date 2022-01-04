@@ -12,10 +12,12 @@ public abstract class GeometryTransformer {
 
     final Geometry geometry;
     final boolean atomic;
+    final boolean simpleCollection;
 
     protected GeometryTransformer(Geometry geometry) {
         this.geometry = geometry;
         this.atomic = isAtomic(geometry);
+        this.simpleCollection = isSimpleCollection(geometry);
     }
 
     public static Rectangle transform(Envelope e) {
@@ -41,8 +43,14 @@ public abstract class GeometryTransformer {
         return new Polygon(latLons.getKey(), latLons.getValue());
     }
 
-    static boolean isAtomic(Geometry geometry) {
+    public static boolean isAtomic(Geometry geometry) {
         return !(geometry instanceof GeometryCollection);
+    }
+
+    public static boolean isSimpleCollection(Geometry geometry) {
+        return geometry instanceof MultiLineString ||
+                geometry instanceof MultiPoint ||
+                geometry instanceof MultiPolygon;
     }
 
     public static Line transform(LineString jtsLine) {

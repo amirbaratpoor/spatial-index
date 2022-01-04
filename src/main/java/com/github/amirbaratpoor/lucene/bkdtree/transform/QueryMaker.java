@@ -18,8 +18,8 @@ public interface QueryMaker {
     Map<Relation, Factory> GEOMETRY_QUERY_MAKER_FACTORIES = new EnumMap<>(Map.of(
             Relation.CONTAINS, ContainsQueryMaker::new,
             Relation.WITHIN, WithinQueryMaker::new,
-            Relation.DISJOINT, DisjointQueryMaker::new,
-            Relation.INTERSECTS, IntersectsQueryMaker::new
+            Relation.DISJOINT, RelationQueryMaker::disjointQueryMaker,
+            Relation.INTERSECTS, RelationQueryMaker::intersectsQueryMaker
     ));
 
     static QueryMaker create(Relation relation, Geometry geometry) {

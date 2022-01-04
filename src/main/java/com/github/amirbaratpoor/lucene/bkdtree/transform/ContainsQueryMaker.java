@@ -12,6 +12,8 @@ import org.apache.lucene.search.ConstantScoreQuery;
 import org.apache.lucene.search.Query;
 import org.locationtech.jts.geom.Geometry;
 
+import static com.github.amirbaratpoor.lucene.bkdtree.BKDTree.POINT_FIELD_NAME;
+import static com.github.amirbaratpoor.lucene.bkdtree.BKDTree.SHAPE_FIELD_NAME;
 import static org.apache.lucene.document.ShapeField.QueryRelation.CONTAINS;
 
 class ContainsQueryMaker extends GeometryTransformer implements QueryMaker {
@@ -25,8 +27,8 @@ class ContainsQueryMaker extends GeometryTransformer implements QueryMaker {
 
     @Override
     public void onPoint(Point point) {
-        Query pointQuery = LatLonPoint.newGeometryQuery(BKDTree.POINT_FIELD_NAME, CONTAINS, point);
-        Query shapeQuery = LatLonShape.newGeometryQuery(BKDTree.SHAPE_FIELD_NAME, CONTAINS, point);
+        Query pointQuery = LatLonPoint.newGeometryQuery(POINT_FIELD_NAME, CONTAINS, point);
+        Query shapeQuery = LatLonShape.newGeometryQuery(SHAPE_FIELD_NAME, CONTAINS, point);
         BooleanQuery.Builder innerBool = new BooleanQuery.Builder();
         innerBool.add(pointQuery, BooleanClause.Occur.SHOULD);
         innerBool.add(shapeQuery, BooleanClause.Occur.SHOULD);
@@ -38,7 +40,7 @@ class ContainsQueryMaker extends GeometryTransformer implements QueryMaker {
 
     @Override
     public void onLine(Line line) {
-        this.query = LatLonShape.newGeometryQuery(BKDTree.SHAPE_FIELD_NAME, CONTAINS, line);
+        this.query = LatLonShape.newGeometryQuery(SHAPE_FIELD_NAME, CONTAINS, line);
         if (!atomic) {
             this.builder.add(this.query, BooleanClause.Occur.MUST);
         }
@@ -46,7 +48,7 @@ class ContainsQueryMaker extends GeometryTransformer implements QueryMaker {
 
     @Override
     public void onPolygon(Polygon polygon) {
-        this.query = LatLonShape.newGeometryQuery(BKDTree.SHAPE_FIELD_NAME, CONTAINS, polygon);
+        this.query = LatLonShape.newGeometryQuery(SHAPE_FIELD_NAME, CONTAINS, polygon);
         if (!atomic) {
             this.builder.add(this.query, BooleanClause.Occur.MUST);
         }
@@ -55,7 +57,8 @@ class ContainsQueryMaker extends GeometryTransformer implements QueryMaker {
     @Override
     public Query makeQuery() {
         transform(geometry, this);
-        return atomic ? new ConstantScoreQuery(query) : builder.build();
+        Query result = atomic ? query : builder.build();
+        return new ConstantScoreQuery(result);
     }
 
 }

@@ -13,13 +13,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-class BKDFieldMaker extends GeometryTransformer implements FieldMaker {
+class BKDTreeFieldMaker extends GeometryTransformer implements FieldMaker {
 
     private final List<IndexableField> nonAtomicFields;
     private IndexableField[] shapeFields = null;
     private IndexableField pointField = null;
 
-    protected BKDFieldMaker(Geometry geometry) {
+    protected BKDTreeFieldMaker(Geometry geometry) {
         super(geometry);
         nonAtomicFields = atomic ? null : new ArrayList<>();
     }
