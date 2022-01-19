@@ -12,16 +12,18 @@ public class VisitorManagerCollectorManager<T, V extends Visitor<? super T>, R> 
 
     private final VisitorManager<T, V, R> visitorManager;
     private final Deserializer<? extends T> deserializer;
+    private final String sourceFieldName;
 
-    public VisitorManagerCollectorManager(VisitorManager<T, V, R> visitorManager, Deserializer<? extends T> deserializer) {
+    public VisitorManagerCollectorManager(VisitorManager<T, V, R> visitorManager, String sourceFieldName, Deserializer<? extends T> deserializer) {
         this.visitorManager = visitorManager;
         this.deserializer = deserializer;
+        this.sourceFieldName = sourceFieldName;
     }
 
 
     @Override
     public VisitorCollector<T, V> newCollector() throws IOException {
-        return new VisitorCollector<>(visitorManager.newVisitor(), deserializer);
+        return new VisitorCollector<>(visitorManager.newVisitor(), sourceFieldName, deserializer);
     }
 
     @Override

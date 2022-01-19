@@ -6,17 +6,17 @@ import org.locationtech.jts.geom.Geometry;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Collection;
+import java.util.List;
 
 public interface SpatialIndex<T> extends Closeable {
 
-    Collection<T> query(Geometry searchShape, Relation relation, int size) throws IOException;
+    List<T> query(Geometry searchShape, Relation relation, int size) throws IOException;
 
     <V extends Visitor<? super T>> void query(Geometry searchShape, Relation relation, V visitor) throws IOException;
 
     <V extends Visitor<? super T>, R> R query(Geometry searchShape, Relation relation, VisitorManager<T, V, R> visitorManager) throws IOException;
 
-    Collection<T> queryById(String id, int size) throws IOException;
+    List<T> queryById(String id, int size) throws IOException;
 
     void queryById(String id, Visitor<? super T> visitor) throws IOException;
 

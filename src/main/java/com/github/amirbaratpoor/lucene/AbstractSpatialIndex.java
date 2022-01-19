@@ -23,7 +23,7 @@ import org.apache.lucene.util.IOUtils;
 import org.locationtech.jts.geom.Geometry;
 
 import java.io.IOException;
-import java.util.Collection;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Executor;
 
@@ -65,7 +65,7 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
     }
 
     @Override
-    public Collection<T> query(Geometry searchShape, Relation relation, int size) throws IOException {
+    public List<T> query(Geometry searchShape, Relation relation, int size) throws IOException {
         ListVisitor<T> visitor = new ListVisitor<>(ThresholdHolder.createMutable(size));
         query(searchShape, relation, visitor);
         return visitor.getItems();
@@ -82,8 +82,10 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
     }
 
     @Override
-    public Collection<T> queryById(String id, int size) {
-        return null;
+    public List<T> queryById(String id, int size) throws IOException {
+        ListVisitor<T> visitor = new ListVisitor<>(ThresholdHolder.createMutable(size));
+        queryById(id, visitor);
+        return visitor.getItems();
     }
 
     @Override
@@ -158,7 +160,7 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
     }
 
     private <V extends Visitor<? super T>> void executeQuery(Query query, V visitor) throws IOException {
-        VisitorCollector<T, V> collector = new VisitorCollector<>(visitor, deserializer);
+        VisitorCollector<T, V> collector = new VisitorCollector<>(visitor, SOURCE_FIELD_NAME, deserializer);
         final IndexSearcher ref = searcherManager.acquire();
         try {
             ref.search(query, collector);
@@ -168,7 +170,7 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
     }
 
     private <V extends Visitor<? super T>, R> R executeQuery(Query query, VisitorManager<T, V, R> visitorManager) throws IOException {
-        VisitorManagerCollectorManager<T, V, R> collectorManager = new VisitorManagerCollectorManager<>(visitorManager, deserializer);
+        VisitorManagerCollectorManager<T, V, R> collectorManager = new VisitorManagerCollectorManager<>(visitorManager, SOURCE_FIELD_NAME, deserializer);
         final IndexSearcher ref = searcherManager.acquire();
         try {
             return ref.search(query, collectorManager);

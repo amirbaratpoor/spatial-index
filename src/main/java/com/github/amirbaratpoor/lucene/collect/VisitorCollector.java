@@ -13,19 +13,20 @@ import java.io.IOException;
 
 public class VisitorCollector<T, V extends Visitor<? super T>> extends SimpleCollector {
 
-    public static final String SOURCE_FIELD = "source";
     private final V visitor;
+    private final String sourceFieldName;
     private final Deserializer<? extends T> deserializer;
     private BinaryDocValues docValues;
 
-    public VisitorCollector(V visitor, Deserializer<? extends T> deserializer) {
+    public VisitorCollector(V visitor, String sourceFieldName, Deserializer<? extends T> deserializer) {
         this.visitor = visitor;
         this.deserializer = deserializer;
+        this.sourceFieldName = sourceFieldName;
     }
 
     @Override
     protected void doSetNextReader(LeafReaderContext context) throws IOException {
-        this.docValues = DocValues.getBinary(context.reader(), SOURCE_FIELD);
+        this.docValues = DocValues.getBinary(context.reader(), sourceFieldName);
         visitor.doSetNextReader(context);
     }
 
