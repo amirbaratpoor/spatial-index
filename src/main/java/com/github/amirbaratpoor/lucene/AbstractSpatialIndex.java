@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Objects;
 import java.util.concurrent.Executor;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
 
@@ -37,7 +36,6 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
     protected final SearcherManager searcherManager;
     protected final Deserializer<? extends T> deserializer;
     protected final Serializer<? super T> serializer;
-    protected final AtomicBoolean closed;
 
     protected AbstractSpatialIndex(Builder<T, ?> builder) throws IOException {
         IndexWriter indexWriter = null;
@@ -49,7 +47,6 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
             searcherManager = new SearcherManager(indexWriter, searcherFactory);
             this.deserializer = Objects.requireNonNullElseGet(builder.deserializer, JavaDeserializer::getInstance);
             this.serializer = Objects.requireNonNullElseGet(builder.serializer, JavaSerializer::getInstance);
-            this.closed = new AtomicBoolean(false);
             this.indexWriter = indexWriter;
             this.searcherManager = searcherManager;
 
@@ -61,15 +58,9 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
     }
 
     @Override
-    public void close() throws IOException {
-        if (!closed.compareAndExchangeRelease(false, true)) {
+    public synchronized void close() throws IOException {
+        if (indexWriter.isOpen()) {
             IOUtils.close(indexWriter, searcherManager);
-        }
-    }
-
-    private void ensureOpen() {
-        if (closed.getAcquire()) {
-            throw new IllegalStateException("This Index is closed");
         }
     }
 
@@ -82,66 +73,46 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
 
     @Override
     public <V extends Visitor<? super T>> void query(Geometry searchShape, Relation relation, V visitor) throws IOException {
-        ensureOpen();
         executeQuery(shapeQuery(searchShape, relation), visitor);
     }
 
     @Override
-    public <V extends Visitor<? super T>, R> R query(Geometry searchShape, Relation relation, V visitor, IOUtils.IOFunction<V, R> extractor) throws IOException {
-        query(searchShape, relation, visitor);
-        return extractor.apply(visitor);
-    }
-
-    @Override
     public <V extends Visitor<? super T>, R> R query(Geometry searchShape, Relation relation, VisitorManager<T, V, R> visitorManager) throws IOException {
-        ensureOpen();
         return executeQuery(shapeQuery(searchShape, relation), visitorManager);
     }
 
     @Override
-    public Collection<T> queryById(String id, int size) throws IOException {
+    public Collection<T> queryById(String id, int size) {
         return null;
     }
 
     @Override
     public void queryById(String id, Visitor<? super T> visitor) throws IOException {
-        ensureOpen();
         executeQuery(idQuery(id), visitor);
     }
 
     @Override
-    public <V extends Visitor<? super T>, R> R queryById(String id, V visitor, IOUtils.IOFunction<V, R> extractor) throws IOException {
-        queryById(id, visitor);
-        return extractor.apply(visitor);
-    }
-
-    @Override
     public <V extends Visitor<? super T>, R> R queryById(String id, VisitorManager<T, V, R> visitorManager) throws IOException {
-        ensureOpen();
         return executeQuery(idQuery(id), visitorManager);
     }
 
     @Override
     public void remove(String id) throws IOException {
-        ensureOpen();
         indexWriter.deleteDocuments(idQuery(id));
     }
 
     @Override
     public void remove(Geometry shape, Relation relation) throws IOException {
-        ensureOpen();
         indexWriter.deleteDocuments(shapeQuery(shape, relation));
     }
 
     @Override
     public void removeAll() throws IOException {
-        ensureOpen();
         indexWriter.deleteAll();
     }
 
     @Override
     public void insert(String id, Geometry shape, T source) throws IOException {
-        ensureOpen();
         IndexableField[] shapeFields = shapeFields(shape);
         Document document = new Document();
         for (IndexableField shapeField : shapeFields) {
@@ -159,7 +130,6 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
 
     @Override
     public int parallelism() throws IOException {
-        ensureOpen();
         final IndexSearcher ref = searcherManager.acquire();
         try {
             IndexSearcher.LeafSlice[] slices = ref.getSlices();
@@ -171,15 +141,15 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
 
     @Override
     public void commit() throws IOException {
-        ensureOpen();
         indexWriter.commit();
     }
 
     @Override
-    public void rollback() throws IOException {
-        if (!closed.compareAndExchangeRelease(false, true)) {
+    public synchronized void rollback() throws IOException {
+        if (indexWriter.isOpen()) {
             IOUtils.close(searcherManager, indexWriter::rollback);
         }
+
     }
 
     @Override

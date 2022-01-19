@@ -1,4 +1,4 @@
-package com.github.amirbaratpoor.lucene.bkdtree.transform;
+package com.github.amirbaratpoor.lucene.bkdtree;
 
 import org.apache.lucene.geo.Line;
 import org.apache.lucene.geo.Point;
@@ -8,16 +8,8 @@ import org.locationtech.jts.geom.*;
 
 import java.util.Map;
 
-public abstract class GeometryTransformer {
-
-    final Geometry geometry;
-    final boolean atomic;
-    final boolean simpleCollection;
-
-    protected GeometryTransformer(Geometry geometry) {
-        this.geometry = geometry;
-        this.atomic = isAtomic(geometry);
-        this.simpleCollection = isSimpleCollection(geometry);
+public final class GeometryTransformer {
+    private GeometryTransformer() {
     }
 
     public static Rectangle transform(Envelope e) {
@@ -68,14 +60,14 @@ public abstract class GeometryTransformer {
         return Map.entry(lats, lons);
     }
 
-    static void transform(Geometry geometry, GeometryTransformer transformer) {
+    public static void consume(Geometry geometry, LatLonConsumer consumer) {
         if (isAtomic(geometry)) {
             if (geometry instanceof org.locationtech.jts.geom.Point p) {
-                transformer.onPoint(transform(p));
+                consumer.point(transform(p));
             } else if (geometry instanceof org.locationtech.jts.geom.Polygon p) {
-                transformer.onPolygon(transform(p));
+                consumer.polygon(transform(p));
             } else if (geometry instanceof LineString ls) {
-                transformer.onLine(transform(ls));
+                consumer.line(transform(ls));
             } else {
                 throw new IllegalArgumentException("Unknown Atomic Geometry" + geometry);
             }
@@ -83,14 +75,9 @@ public abstract class GeometryTransformer {
         }
         GeometryCollection gc = (GeometryCollection) geometry;
         for (int i = 0; i < gc.getNumGeometries(); ++i) {
-            transform(gc.getGeometryN(i), transformer);
+            consume(gc.getGeometryN(i), consumer);
         }
     }
 
-    abstract void onPoint(Point point);
-
-    abstract void onLine(Line line);
-
-    abstract void onPolygon(Polygon polygon);
 
 }

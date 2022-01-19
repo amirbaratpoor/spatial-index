@@ -15,7 +15,7 @@ public interface ThresholdHolder {
 
             @Override
             public boolean isThresholdReached() {
-                return hitCount.getAcquire() > threshold;
+                return hitCount.getOpaque() > threshold;
             }
 
             @Override

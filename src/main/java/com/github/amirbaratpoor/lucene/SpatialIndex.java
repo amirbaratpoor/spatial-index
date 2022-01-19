@@ -2,7 +2,6 @@ package com.github.amirbaratpoor.lucene;
 
 import com.github.amirbaratpoor.lucene.visitor.Visitor;
 import com.github.amirbaratpoor.lucene.visitor.VisitorManager;
-import org.apache.lucene.util.IOUtils.IOFunction;
 import org.locationtech.jts.geom.Geometry;
 
 import java.io.Closeable;
@@ -15,15 +14,11 @@ public interface SpatialIndex<T> extends Closeable {
 
     <V extends Visitor<? super T>> void query(Geometry searchShape, Relation relation, V visitor) throws IOException;
 
-    <V extends Visitor<? super T>, R> R query(Geometry searchShape, Relation relation, V visitor, IOFunction<V, R> extractor) throws IOException;
-
     <V extends Visitor<? super T>, R> R query(Geometry searchShape, Relation relation, VisitorManager<T, V, R> visitorManager) throws IOException;
 
     Collection<T> queryById(String id, int size) throws IOException;
 
     void queryById(String id, Visitor<? super T> visitor) throws IOException;
-
-    <V extends Visitor<? super T>, R> R queryById(String id, V visitor, IOFunction<V, R> extractor) throws IOException;
 
     <V extends Visitor<? super T>, R> R queryById(String id, VisitorManager<T, V, R> visitorManager) throws IOException;
 
