@@ -1,8 +1,8 @@
 package com.github.amirbaratpoor.lucene;
 
+import com.github.amirbaratpoor.io.DefaultDeserializer;
+import com.github.amirbaratpoor.io.DefaultSerializer;
 import com.github.amirbaratpoor.io.Deserializer;
-import com.github.amirbaratpoor.io.JavaDeserializer;
-import com.github.amirbaratpoor.io.JavaSerializer;
 import com.github.amirbaratpoor.io.Serializer;
 import com.github.amirbaratpoor.lucene.collect.VisitorCollector;
 import com.github.amirbaratpoor.lucene.collect.VisitorManagerCollectorManager;
@@ -42,11 +42,11 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
         SearcherManager searcherManager = null;
         SearcherFactory searcherFactory = getSearcherFactory(builder.executor);
         try {
-
-            indexWriter = new IndexWriter(builder.directory, getConfig(builder));
-            searcherManager = new SearcherManager(indexWriter, searcherFactory);
-            this.deserializer = Objects.requireNonNullElseGet(builder.deserializer, JavaDeserializer::getInstance);
-            this.serializer = Objects.requireNonNullElseGet(builder.serializer, JavaSerializer::getInstance);
+            boolean readOnly = builder.readOnly;
+            indexWriter = readOnly ? null : new IndexWriter(builder.directory, getConfig(builder));
+            searcherManager = readOnly ? new SearcherManager(builder.directory, searcherFactory) : new SearcherManager(indexWriter, searcherFactory);
+            this.deserializer = Objects.requireNonNullElseGet(builder.deserializer, DefaultDeserializer::getInstance);
+            this.serializer = Objects.requireNonNullElseGet(builder.serializer, DefaultSerializer::getInstance);
             this.indexWriter = indexWriter;
             this.searcherManager = searcherManager;
 
@@ -59,9 +59,7 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
 
     @Override
     public synchronized void close() throws IOException {
-        if (indexWriter.isOpen()) {
-            IOUtils.close(indexWriter, searcherManager);
-        }
+        IOUtils.close(indexWriter, searcherManager);
     }
 
     @Override
@@ -201,7 +199,17 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
             @Override
             public IndexSearcher newSearcher(IndexReader reader, IndexReader previousReader) {
                 IndexSearcher indexSearcher = new IndexSearcher(reader, executor);
-                indexSearcher.setQueryCachingPolicy(null);
+                indexSearcher.setQueryCachingPolicy(new QueryCachingPolicy() {
+                    @Override
+                    public void onUse(Query query) {
+
+                    }
+
+                    @Override
+                    public boolean shouldCache(Query query) {
+                        return false;
+                    }
+                });
                 return indexSearcher;
             }
         };
@@ -219,11 +227,18 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
         private IndexWriterConfig.OpenMode openMode = IndexWriterConfig.OpenMode.CREATE_OR_APPEND;
         private Executor executor = null;
         private double ramBufferSizeMB = IndexWriterConfig.DEFAULT_RAM_BUFFER_SIZE_MB;
-        private Deserializer<? extends T> deserializer;
-        private Serializer<? super T> serializer;
+        private final Deserializer<? extends T> deserializer;
+        private final Serializer<? super T> serializer;
+        private boolean readOnly = true;
 
         protected Builder(Directory directory) {
+            this(directory, null, null);
+        }
+
+        protected Builder(Directory directory, Serializer<? super T> serializer, Deserializer<? extends T> deserializer) {
             this.directory = Objects.requireNonNull(directory);
+            this.serializer = serializer;
+            this.deserializer = deserializer;
         }
 
         public B setExecutor(Executor executor) {
@@ -231,18 +246,13 @@ public abstract class AbstractSpatialIndex<T> implements SpatialIndex<T> {
             return self();
         }
 
+        public B setReadOnly(boolean readOnly) {
+            this.readOnly = readOnly;
+            return self();
+        }
+
         public B setOpenMode(IndexWriterConfig.OpenMode openMode) {
             this.openMode = openMode;
-            return self();
-        }
-
-        public B setDeserializer(Deserializer<? extends T> deserializer) {
-            this.deserializer = deserializer;
-            return self();
-        }
-
-        public B setSerializer(Serializer<? super T> serializer) {
-            this.serializer = serializer;
             return self();
         }
 

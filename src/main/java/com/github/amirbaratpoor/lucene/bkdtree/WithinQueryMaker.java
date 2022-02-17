@@ -24,7 +24,7 @@ class WithinQueryMaker implements BKDQueryMaker {
     @Override
     public Query makeQuery(Geometry geometry) {
         PointPolygonExtractor extractor = new PointPolygonExtractor(geometry);
-        GeometryTransformer.consume(geometry, extractor);
+        GeometryTransformer.process(geometry, extractor);
         Query pointsQuery = null;
         if (extractor.points != null) {
             pointsQuery = LatLonPoint.newGeometryQuery(POINT_FIELD_NAME, WITHIN, extractor.points.toArray(new Point[0]));

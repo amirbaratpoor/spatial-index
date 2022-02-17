@@ -60,7 +60,7 @@ public final class GeometryTransformer {
         return Map.entry(lats, lons);
     }
 
-    public static void consume(Geometry geometry, LatLonConsumer consumer) {
+    public static void process(Geometry geometry, LatLonConsumer consumer) {
         if (isAtomic(geometry)) {
             if (geometry instanceof org.locationtech.jts.geom.Point p) {
                 consumer.point(transform(p));
@@ -75,7 +75,7 @@ public final class GeometryTransformer {
         }
         GeometryCollection gc = (GeometryCollection) geometry;
         for (int i = 0; i < gc.getNumGeometries(); ++i) {
-            consume(gc.getGeometryN(i), consumer);
+            process(gc.getGeometryN(i), consumer);
         }
     }
 

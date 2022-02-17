@@ -21,7 +21,7 @@ final class ContainsQueryMaker implements BKDQueryMaker {
     public Query makeQuery(Geometry geometry) {
         boolean atomic = GeometryTransformer.isAtomic(geometry);
         QueryMaker queryMaker = new QueryMaker(atomic);
-        GeometryTransformer.consume(geometry, queryMaker);
+        GeometryTransformer.process(geometry, queryMaker);
         Query result = atomic ? queryMaker.query : queryMaker.builder.build();
         return new ConstantScoreQuery(result);
     }

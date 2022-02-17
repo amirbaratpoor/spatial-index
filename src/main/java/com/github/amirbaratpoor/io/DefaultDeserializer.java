@@ -5,17 +5,17 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.Arrays;
 
-public class JavaDeserializer<T> implements Deserializer<T> {
+public class DefaultDeserializer<T> implements Deserializer<T> {
 
     @SuppressWarnings("rawtypes")
-    private static final Deserializer INSTANCE = new JavaDeserializer<>();
+    private static final Deserializer INSTANCE = new DefaultDeserializer<>();
 
-    private JavaDeserializer() {
+    private DefaultDeserializer() {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> JavaDeserializer<T> getInstance() {
-        return (JavaDeserializer<T>) INSTANCE;
+    public static <T> DefaultDeserializer<T> getInstance() {
+        return (DefaultDeserializer<T>) INSTANCE;
     }
 
     @Override

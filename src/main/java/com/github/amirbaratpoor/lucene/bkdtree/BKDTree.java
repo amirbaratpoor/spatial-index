@@ -1,5 +1,7 @@
 package com.github.amirbaratpoor.lucene.bkdtree;
 
+import com.github.amirbaratpoor.io.Deserializer;
+import com.github.amirbaratpoor.io.Serializer;
 import com.github.amirbaratpoor.lucene.AbstractSpatialIndex;
 import com.github.amirbaratpoor.lucene.Relation;
 import org.apache.lucene.document.LatLonPoint;
@@ -63,7 +65,11 @@ public class BKDTree<T> extends AbstractSpatialIndex<T> {
     public static class Builder<T> extends AbstractSpatialIndex.Builder<T, Builder<T>> {
 
         public Builder(Directory directory) {
-            super(directory);
+            this(directory, null, null);
+        }
+
+        public Builder(Directory directory, Serializer<? super T> serializer, Deserializer<? extends T> deserializer) {
+            super(directory, serializer, deserializer);
         }
 
         @Override

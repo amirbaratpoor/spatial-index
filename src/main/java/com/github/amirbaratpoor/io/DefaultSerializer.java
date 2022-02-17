@@ -4,15 +4,15 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 
-public class JavaSerializer<T> implements Serializer<T> {
+public class DefaultSerializer<T> implements Serializer<T> {
     @SuppressWarnings("rawtypes")
-    private static final JavaSerializer INSTANCE = new JavaSerializer<>();
+    private static final DefaultSerializer INSTANCE = new DefaultSerializer<>();
 
-    private JavaSerializer() {
+    private DefaultSerializer() {
     }
 
     @SuppressWarnings("unchecked")
-    public static <T> JavaSerializer<T> getInstance() {
+    public static <T> DefaultSerializer<T> getInstance() {
         return INSTANCE;
     }
 

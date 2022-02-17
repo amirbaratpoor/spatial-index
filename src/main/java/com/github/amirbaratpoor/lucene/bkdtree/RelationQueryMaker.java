@@ -40,7 +40,7 @@ class RelationQueryMaker implements BKDQueryMaker {
     @Override
     public Query makeQuery(Geometry geometry) {
         LatLonCollector extractor = new LatLonCollector(geometry);
-        GeometryTransformer.consume(geometry, extractor);
+        GeometryTransformer.process(geometry, extractor);
         LatLonGeometry[] geometries = extractor.latLonGeometries.toArray(new LatLonGeometry[0]);
         BooleanQuery.Builder builder = new BooleanQuery.Builder();
         BooleanClause.Occur occur = relation == Relation.INTERSECTS ? SHOULD : MUST_NOT;

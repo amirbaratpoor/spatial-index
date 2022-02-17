@@ -17,7 +17,7 @@ final class BKDFieldMaker {
     IndexableField[] makeFields(Geometry geometry) {
         boolean atomic = GeometryTransformer.isAtomic(geometry);
         FieldMaker fieldMaker = new FieldMaker(atomic);
-        GeometryTransformer.consume(geometry, fieldMaker);
+        GeometryTransformer.process(geometry, fieldMaker);
         if (atomic) {
             return fieldMaker.pointField != null ? new IndexableField[]{fieldMaker.pointField} : fieldMaker.shapeFields;
         }
